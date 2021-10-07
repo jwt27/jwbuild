@@ -156,13 +156,11 @@ check_compiler()
 # add_library <relative_directory> [configure_args...]
 add_library()
 {
-	local home=$(pwd)
 	local dir=$1
 	shift
 	mkdir -p $dir
-	cd $dir
-	$src/$dir/configure $"@"
-	libraries[$(cat name)]=("$dir")
+	( cd $dir && $src/$dir/configure "$@" )
+	libraries["$(cat "$dir/name")"]="$dir"
 }
 
 # read_flags <flag_file>
