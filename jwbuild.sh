@@ -21,7 +21,7 @@ cleanup()
 		make distclean > /dev/null 2>&1 || :
 	fi
 
-	rm -f Makefile config.status cxxflags ldflags name 2> /dev/null || :
+	rm -f Makefile config.status cxxflags ldflags name targets 2> /dev/null || :
 }
 
 # fail [message]
@@ -234,18 +234,23 @@ write_makefile()
 			echo ".PHONY: $i"
 			echo "$i:"
 			echo "	\$(MAKE) -C '$dir'"
-			echo "clean:"
-			echo "	\$(MAKE) -C '$dir' clean"
-			echo "$i/Makefile:"
+			echo "$dir/Makefile:"
 			echo "	\$(MAKE) -C '$dir' Makefile"
-			echo "Makefile: $i/Makefile"
+			echo "Makefile: $dir/Makefile"
+			if [[ -e "$dir/targets" ]]; then
+				for target in $(cat "$dir/targets"); do
+					echo ".PHONY: $target"
+					echo "$target: $dir/$target"
+					echo "$dir/$target:"
+					echo "	\$(MAKE) -C '$dir' $target"
+				done
+			fi
 		done
 
 		echo "ifneq (\$(MAKECMDGOALS),distclean)"
 		echo "Makefile: $src/configure $src/Makefile.in config.status"
 		echo "	./config.status"
 		echo "endif"
-		echo
 		echo "distclean: clean"
 		echo "	-rm -f Makefile config.status cxxflags ldflags"
 	} >> Makefile
