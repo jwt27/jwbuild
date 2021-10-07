@@ -244,7 +244,7 @@ write_makefile()
 			echo "	\$(MAKE) -C '$dir' Makefile"
 			echo "Makefile: $dir/Makefile"
 			if [[ -e "$dir/targets" ]]; then
-				for target in $(cat "$dir/targets"); do
+				for target in $(cat "$dir/targets") distclean; do
 					echo ".PHONY: $target $dir/$target"
 					echo "$target: $dir/$target"
 					echo "$dir/$target:"
@@ -257,6 +257,7 @@ write_makefile()
 		echo "Makefile: $src/configure $src/Makefile.in config.status"
 		echo "	./config.status"
 		echo "endif"
+		echo ".PHONY: distclean"
 		echo "distclean: clean"
 		echo "	-rm -f Makefile config.status cxxflags ldflags"
 	} >> Makefile
