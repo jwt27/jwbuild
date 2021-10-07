@@ -24,17 +24,23 @@ cleanup()
 	rm -f Makefile config.status cxxflags ldflags name targets 2> /dev/null || :
 }
 
+# msg [message]
+msg()
+{
+	echo "$@" 1>&2
+}
+
 # fail [message]
 fail()
 {
-	echo Error: "$@" 1>&2
+	msg Error: "$@"
 	exit 1
 }
 
 # warn [message]
 warn()
 {
-	echo Warning: "$@" 1>&2
+	msg Warning: "$@"
 }
 
 for i in $vars; do
