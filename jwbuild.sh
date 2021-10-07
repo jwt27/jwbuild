@@ -237,7 +237,7 @@ write_makefile()
 
 		for i in "${!libraries[@]}"; do
 			local dir="${libraries[$i]}"
-			echo ".PHONY: $i"
+			echo ".PHONY: $i $dir/Makefile"
 			echo "$i:"
 			echo "	\$(MAKE) -C '$dir'"
 			echo "$dir/Makefile:"
@@ -245,7 +245,7 @@ write_makefile()
 			echo "Makefile: $dir/Makefile"
 			if [[ -e "$dir/targets" ]]; then
 				for target in $(cat "$dir/targets"); do
-					echo ".PHONY: $target"
+					echo ".PHONY: $target $dir/$target"
 					echo "$target: $dir/$target"
 					echo "$dir/$target:"
 					echo "	\$(MAKE) -C '$dir' $target"
