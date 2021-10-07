@@ -39,6 +39,7 @@ warn()
 
 for i in $vars; do
 	saved_vars[$i]="${!i}"
+	export $i
 done
 
 for i in "${arguments[@]}"; do
