@@ -65,6 +65,20 @@ for i in "${arguments[@]}"; do
 	esac
 done
 
+# test_bool <value>
+test_bool()
+{
+	case "$1" in
+	y*) return 0 ;;
+	Y*) return 0 ;;
+	n*) return 1 ;;
+	N*) return 1 ;;
+	1) return 0 ;;
+	0) return 1 ;;
+	*) fail "unrecognized option value $1"
+	esac
+}
+
 # save_config
 save_config()
 {
