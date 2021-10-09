@@ -13,17 +13,20 @@ declare -A submodule_args
 declare -ra arguments=("$@")
 readonly generated_files='Makefile config.status cxxflags ldflags cxxdeps lddeps targets'
 
+# Display a message.
 msg() # [message]
 {
 	echo "$@" 1>&2
 }
 
+# Exit with an error message
 fail() # [message]
 {
 	msg Error: "$@"
 	exit 1
 }
 
+# Display a warning
 warn() # [message]
 {
 	msg Warning: "$@"
@@ -53,6 +56,7 @@ for i in "${arguments[@]}"; do
 	esac
 done
 
+# Parse boolean string and return as exit code.  Return default value if empty.
 test_bool() # <value> <default_value>
 {
 	local default=1
@@ -77,6 +81,7 @@ test_bool() # <value> <default_value>
 	esac
 }
 
+# Parse boolean option and return as exit code.  Return default value if empty.
 test_option() # <option_name> <default_value>
 {
 	if test_bool "${options[$1]}" $2; then
@@ -88,6 +93,7 @@ test_option() # <option_name> <default_value>
 	fi
 }
 
+# Add a submodule to be configured with the given arguments
 add_submodule() # <relative_directory> [configure_args...]
 {
 	local dir=$1
@@ -101,6 +107,7 @@ add_submodule() # <relative_directory> [configure_args...]
 	done
 }
 
+# Save required environment variables, exit if --query-flags is given.
 save_vars() #
 {
 	for i in $vars; do
@@ -114,11 +121,7 @@ save_vars() #
 	msg "Configuring in $(pwd)..."
 }
 
-abspath() # <path>
-{
-	echo $(cd $(dirname "$@") && pwd)/$(basename "$@")
-}
-
+# Return Windows-style path, if running in MinGW
 winpath() # <path>
 {
 	case $(uname) in
@@ -127,11 +130,13 @@ winpath() # <path>
 	esac
 }
 
+# Check if a program is installed
 have_program() # <program_name>
 {
 	which "$@" 2>&1 > /dev/null
 }
 
+# Check if all given programs are installed
 check_programs() # <program_names...>
 {
 	for i in "$@"; do
@@ -141,6 +146,7 @@ check_programs() # <program_names...>
 	done
 }
 
+# Compile input with given cxxflags
 compile() # [extra_flags...]
 {
 	set +e
@@ -151,6 +157,7 @@ compile() # [extra_flags...]
 	return $status
 }
 
+# Compile and link input with given cxxflags
 compile_exe() # [extra_flags...]
 {
 	set +e
@@ -161,16 +168,19 @@ compile_exe() # [extra_flags...]
 	return $status
 }
 
+# Compile without displaying compiler output
 compile_silent() # [extra_flags...]
 {
 	compile "$@" > /dev/null 2>&1
 }
 
+# Compile and link without displaying compiler output
 compile_exe_silent() # [extra_flags...]
 {
 	compile_exe "$@" > /dev/null 2>&1
 }
 
+# Check if the compiler understands given cxxflags
 check_compiler() # [cxxflags_to_test...]
 {
 	echo | compile || fail "compiler does not work"
@@ -179,6 +189,7 @@ check_compiler() # [cxxflags_to_test...]
 	done
 }
 
+# Configure submodules given earlier with add_submodule
 configure_submodules() #
 {
 	local args=
@@ -191,6 +202,7 @@ configure_submodules() #
 	done
 }
 
+# Clean up generated files from a previous configuration
 cleanup() #
 {
 	if [[ -e Makefile ]]; then
@@ -200,9 +212,9 @@ cleanup() #
 	rm -f $generated_files
 }
 
+# Generate config.status
 save_config() #
 {
-	# Generate config.status
 	{
 		echo '#!/usr/bin/env bash'
 		for i in "${!saved_vars[@]}"; do
@@ -216,7 +228,8 @@ save_config() #
 	chmod +x config.status
 }
 
-add_prefix() # <prefix> <words...>
+# Prepend the given prefix to each word in string
+add_prefix() # <prefix> [words...]
 {
 	local prefix=$1
 	shift
@@ -224,6 +237,7 @@ add_prefix() # <prefix> <words...>
 	printf "$prefix/%s " "$@" | tr -s '/'
 }
 
+# Read flags from a file separated either by spaces or newlines
 read_flags() # <flag_file>
 {
 	[[ ! -e $1 ]] && return
@@ -231,6 +245,7 @@ read_flags() # <flag_file>
 	cat $1 | tr '\n' ' '
 }
 
+# Remove all duplicate words in string
 remove_duplicates() # [words...]
 {
 	declare -A map
@@ -240,6 +255,7 @@ remove_duplicates() # [words...]
 	echo "${!map[@]}"
 }
 
+# Propagate cxxflags from submodules
 write_cxxflags() #
 {
 	{
@@ -251,6 +267,7 @@ write_cxxflags() #
 	} >> cxxflags
 }
 
+# Propagate ldflags from submodules
 write_ldflags() #
 {
 	{
@@ -262,6 +279,7 @@ write_ldflags() #
 	} >> ldflags
 }
 
+# Propagate cxxdeps from submodules
 write_cxxdeps() #
 {
 	{
@@ -273,6 +291,7 @@ write_cxxdeps() #
 	} >> cxxdeps
 }
 
+# Propagate lddeps from submodules
 write_lddeps() #
 {
 	{
@@ -284,6 +303,7 @@ write_lddeps() #
 	} >> lddeps
 }
 
+# Propagate phony targets from submodules
 write_targets() #
 {
 	{
@@ -295,6 +315,7 @@ write_targets() #
 	} >> targets
 }
 
+# Generate the Makefile
 write_makefile() #
 {
 	{
