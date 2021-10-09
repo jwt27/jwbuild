@@ -8,45 +8,26 @@ set -e
 
 declare -A options
 declare -A saved_vars
-declare -A libraries
-declare -a arguments
+declare -a submodules
+declare -A submodule_args
+declare -ra arguments=("$@")
+readonly generated_files='Makefile config.status cxxflags ldflags cxxdeps lddeps targets'
 
-arguments=("$@")
-
-# cleanup
-cleanup()
-{
-	# Clean up
-	if [[ -e Makefile ]]; then
-		make distclean > /dev/null 2>&1 || :
-	fi
-
-	rm -f Makefile config.status cxxflags ldflags name targets 2> /dev/null || :
-}
-
-# msg [message]
-msg()
+msg() # [message]
 {
 	echo "$@" 1>&2
 }
 
-# fail [message]
-fail()
+fail() # [message]
 {
 	msg Error: "$@"
 	exit 1
 }
 
-# warn [message]
-warn()
+warn() # [message]
 {
 	msg Warning: "$@"
 }
-
-for i in $vars; do
-	saved_vars[$i]="${!i}"
-	export $i
-done
 
 for i in "${arguments[@]}"; do
 	case "$i" in
@@ -54,7 +35,7 @@ for i in "${arguments[@]}"; do
 		i="${i#--}"
 		var="${i%%=*}"
 		value="${i#*=}"
-		options["$var"]="$value"
+		options[$var]="$value"
 		;;
 	--*)
 		i="${i#--}"
@@ -64,6 +45,7 @@ for i in "${arguments[@]}"; do
 		var="${i%%=*}"
 		value="${i#*=}"
 		eval "$var"="'$value'"
+		export "$var"
 		;;
 	*)
 		fail "invalid argument: $i"
@@ -71,22 +53,154 @@ for i in "${arguments[@]}"; do
 	esac
 done
 
-# test_bool <value>
-test_bool()
+test_bool() # <value> <default_value>
 {
+	local default=1
+	if [[ ! -z "$2" ]]; then
+		if test_bool $2; then
+			default=0
+		else
+			default=1
+		fi
+	fi
 	case "$1" in
-	y*) return 0 ;;
-	Y*) return 0 ;;
-	n*) return 1 ;;
-	N*) return 1 ;;
-	1) return 0 ;;
-	0) return 1 ;;
-	*) fail "unrecognized option value $1"
+	true)  return 0 ;;
+	false) return 1 ;;
+	y*)    return 0 ;;
+	Y*)    return 0 ;;
+	n*)    return 1 ;;
+	N*)    return 1 ;;
+	1)     return 0 ;;
+	0)     return 1 ;;
+	'')    return $default ;;
+	*)     fail "unrecognized boolean value $1"
 	esac
 }
 
-# save_config
-save_config()
+test_option() # <option_name> <default_value>
+{
+	if test_bool "${options[$1]}" $2; then
+		options[$1]=yes
+		return 0
+	else
+		options[$1]=no
+		return 1
+	fi
+}
+
+add_submodule() # <relative_directory> [configure_args...]
+{
+	local dir=$1
+	shift
+	submodules+=($dir)
+	submodule_args[$dir]="$@"
+	mkdir -p $dir
+	for i in $(cd $dir && $src/$dir/configure --query-vars); do
+		saved_vars[$i]="${!i}"
+		export $i
+	done
+}
+
+save_vars() #
+{
+	for i in $vars; do
+		saved_vars[$i]="${!i}"
+		export $i
+	done
+	if test_option query-vars; then
+		echo ${!saved_vars[@]}
+		exit
+	fi
+	msg "Configuring in $(pwd)..."
+}
+
+abspath() # <path>
+{
+	echo $(cd $(dirname "$@") && pwd)/$(basename "$@")
+}
+
+winpath() # <path>
+{
+	case $(uname) in
+	MINGW*) echo "$(cygpath -w "$@")" ;;
+	*) echo "$@" ;;
+	esac
+}
+
+have_program() # <program_name>
+{
+	which "$@" 2>&1 > /dev/null
+}
+
+check_programs() # <program_names...>
+{
+	for i in "$@"; do
+		if ! have_program $i; then
+			fail "$i not found"
+		fi
+	done
+}
+
+compile() # [extra_flags...]
+{
+	set +e
+	$CXX $CXXFLAGS "$@" -x c++ -c -o tmpfile - > /dev/null
+	local status=$?
+	set -e
+	rm -f tmpfile
+	return $status
+}
+
+compile_exe() # [extra_flags...]
+{
+	set +e
+	$CXX $CXXFLAGS "$@" -x c++ -o tmpfile $LDFLAGS - > /dev/null
+	local status=$?
+	set -e
+	rm -f tmpfile
+	return $status
+}
+
+compile_silent() # [extra_flags...]
+{
+	compile "$@" > /dev/null 2>&1
+}
+
+compile_exe_silent() # [extra_flags...]
+{
+	compile_exe "$@" > /dev/null 2>&1
+}
+
+check_compiler() # [cxxflags_to_test...]
+{
+	echo | compile || fail "compiler does not work"
+	for i in "$@"; do
+		echo | compile $i || fail "compiler does not understand $i"
+	done
+}
+
+configure_submodules() #
+{
+	local args=
+	for a in "${!options[@]}"; do
+		[[ -z "${options[$a]}" ]] && continue
+		args+=" --$a=${options[$a]}"
+	done
+	for sub in "${submodules[@]}"; do
+		( cd "$sub" && "$src/$sub/configure" $args ${submodule_args[$sub]} )
+	done
+}
+
+cleanup() #
+{
+	if [[ -e Makefile ]]; then
+		make distclean > /dev/null 2>&1 || :
+	fi
+
+	rm -f $generated_files
+}
+
+save_config() #
 {
 	# Generate config.status
 	{
@@ -102,100 +216,34 @@ save_config()
 	chmod +x config.status
 }
 
-# abspath <path>
-abspath()
+add_prefix() # <prefix> <words...>
 {
-	echo $(cd $(dirname "$@") && pwd)/$(basename "$@")
-}
-
-# winpath <path>
-winpath()
-{
-	case $(uname) in
-	MINGW*) echo "$(cygpath -w "$@")" ;;
-	*) echo "$@" ;;
-	esac
-}
-
-# have_program <program_name>
-have_program()
-{
-	which "$@" 2>&1 > /dev/null
-}
-
-# check_programs <program_names...>
-check_programs()
-{
-	for i in "$@"; do
-		if ! have_program $i; then
-			fail "$i not found"
-		fi
-	done
-}
-
-# compile [extra_flags...]
-compile()
-{
-	set +e
-	$CXX $CXXFLAGS "$@" -x c++ -c -o tmpfile - > /dev/null
-	local status=$?
-	rm -f tmpfile 2> /dev/null
-	return $status
-}
-
-# compile_exe [extra_flags...]
-compile_exe()
-{
-	set +e
-	$CXX $CXXFLAGS "$@" -x c++ -o tmpfile $LDFLAGS - > /dev/null
-	local status=$?
-	rm -f tmpfile 2> /dev/null
-	return $status
-}
-
-# compile_silent [extra_flags...]
-compile_silent()
-{
-	compile "$@" > /dev/null 2>&1
-}
-
-# compile_exe_silent [extra_flags...]
-compile_exe_silent()
-{
-	compile_exe "$@" > /dev/null 2>&1
-}
-
-# check_compiler [cxxflags_to_test...]
-check_compiler()
-{
-	echo | compile || fail "compiler does not work"
-	for i in "$@"; do
-		echo | compile $i || fail "compiler does not understand $i"
-	done
-}
-
-# add_library <relative_directory> [configure_args...]
-add_library()
-{
-	local dir=$1
+	local prefix=$1
 	shift
-	mkdir -p $dir
-	( cd $dir && $src/$dir/configure "$@" )
-	libraries["$(cat "$dir/name")"]="$dir"
+	[[ -z "$@" ]] && return
+	printf "$prefix/%s " "$@" | tr -s '/'
 }
 
-# read_flags <flag_file>
-read_flags()
+read_flags() # <flag_file>
 {
+	[[ ! -e $1 ]] && return
 	echo -n ' '
 	cat $1 | tr '\n' ' '
 }
 
-# write_cxxflags
-write_cxxflags()
+remove_duplicates() # [words...]
+{
+	declare -A map
+	for i in "$@"; do
+		map[$i]=1
+	done
+	echo "${!map[@]}"
+}
+
+write_cxxflags() #
 {
 	{
-		for i in "${libraries[@]}"; do
+		for i in "${submodules[@]}"; do
 			if [[ -e "$i/cxxflags" ]]; then
 				cat "$i/cxxflags"
 			fi
@@ -203,11 +251,10 @@ write_cxxflags()
 	} >> cxxflags
 }
 
-# write_ldflags
-write_ldflags()
+write_ldflags() #
 {
 	{
-		for i in "${libraries[@]}"; do
+		for i in "${submodules[@]}"; do
 			if [[ -e "$i/ldflags" ]]; then
 				cat "$i/ldflags"
 			fi
@@ -215,50 +262,97 @@ write_ldflags()
 	} >> ldflags
 }
 
-# write_makefile
-write_makefile()
+write_cxxdeps() #
 {
 	{
-		echo "VPATH := $src"
+		for i in "${submodules[@]}"; do
+			if [[ -e "$i/cxxdeps" ]]; then
+				add_prefix "$i/" $(read_flags "$i/cxxdeps")
+			fi
+		done
+	} >> cxxdeps
+}
 
-		for i in "${!saved_vars[@]}"; do
+write_lddeps() #
+{
+	{
+		for i in "${submodules[@]}"; do
+			if [[ -e "$i/lddeps" ]]; then
+				add_prefix "$i/" $(read_flags "$i/lddeps")
+			fi
+		done
+	} >> lddeps
+}
+
+write_targets() #
+{
+	{
+		for i in "${submodules[@]}"; do
+			if [[ -e "$i/targets" ]]; then
+				cat "$i/targets"
+			fi
+		done
+	} >> targets
+}
+
+write_makefile() #
+{
+	{
+		cat <<- EOF
+			VPATH := $src
+			CXXDEPS :=
+			LDDEPS :=
+		EOF
+
+		for i in $vars; do
 			echo "$i := ${!i}"
 		done
 
-		if [[ -e cxxflags ]]; then
-			echo "CXXFLAGS += $(read_flags cxxflags)"
-		fi
-
-		if [[ -e ldflags ]]; then
-			echo "LDFLAGS += $(read_flags ldflags)"
-		fi
-
-		cat "$src/Makefile.in"
-
-		for i in "${!libraries[@]}"; do
-			local dir="${libraries[$i]}"
-			echo ".PHONY: $i $dir/Makefile"
-			echo "$i:"
-			echo "	\$(MAKE) -C '$dir'"
-			echo "$dir/Makefile:"
-			echo "	\$(MAKE) -C '$dir' Makefile"
-			echo "Makefile: $dir/Makefile"
-			if [[ -e "$dir/targets" ]]; then
-				for target in $(cat "$dir/targets") distclean; do
-					echo ".PHONY: $target $dir/$target"
-					echo "$target: $dir/$target"
-					echo "$dir/$target:"
-					echo "	\$(MAKE) -C '$dir' $target"
-				done
+		for i in "${submodules[@]}"; do
+			if [[ -e "$i/cxxflags" ]]; then
+				echo "CXXFLAGS += $(read_flags "$i/cxxflags")"
+			fi
+			if [[ -e "$i/ldflags" ]]; then
+				echo "LDFLAGS += $(read_flags "$i/ldflags")"
+			fi
+			if [[ -e "$i/cxxdeps" ]]; then
+				echo "CXXDEPS += $(add_prefix "$i/" $(read_flags "$i/cxxdeps"))"
+			fi
+			if [[ -e "$i/lddeps" ]]; then
+				echo "LDDEPS += $(add_prefix "$i/" $(read_flags "$i/lddeps"))"
 			fi
 		done
 
-		echo "ifneq (\$(MAKECMDGOALS),distclean)"
-		echo "Makefile: $src/configure $src/Makefile.in config.status"
-		echo "	./config.status"
-		echo "endif"
-		echo ".PHONY: distclean"
-		echo "distclean: clean"
-		echo "	-rm -f Makefile config.status cxxflags ldflags"
+		cat "$src/Makefile.in"
+
+		for i in "${submodules[@]}"; do
+			cat <<- EOF
+				.PRECIOUS: $i/%
+				$i/%: FORCE ; \$(MAKE) -C $i \$*
+				Makefile: $i/Makefile
+			EOF
+			for target in $(remove_duplicates $(read_flags "$i/targets") all clean distclean); do
+				cat <<- EOF
+					.PHONY: $target
+					$target: $i/$target
+				EOF
+			done
+		done
+		cat <<- EOF
+			FORCE:
+			.PHONY: distclean
+			distclean: clean ; -rm -f $generated_files
+			ifneq (,\$(filter \$(MAKECMDGOALS),clean distclean))
+				export JWBUILD_MAKECLEAN := yes
+			endif
+			ifeq (\$(JWBUILD_MAKECLEAN),)
+				ifeq (\$(JWBUILD_SUBMAKE),)
+					export JWBUILD_SUBMAKE := yes
+					Makefile: $src/configure $src/Makefile.in config.status ; ./config.status
+				else
+					Makefile: $src/configure $src/Makefile.in config.status ; touch Makefile
+				endif
+			endif
+		EOF
 	} >> Makefile
 }
