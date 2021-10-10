@@ -1,13 +1,13 @@
 #!/usr/bin/false
 
 # Expected variables on entry:
-# $src : source directory
-# $vars: list of variables to save
+# $src: source directory
 
 set -e
 
 declare -A options
 declare -A saved_vars
+declare makefile_vars
 declare -a submodules
 declare -A submodule_args
 declare -ra arguments=("$@")
@@ -107,10 +107,11 @@ add_submodule() # <relative_directory> [configure_args...]
 	done
 }
 
-# Save required environment variables, exit if --query-flags is given.
-save_vars() #
+# Save given environment variables, exit if --query-flags is given.
+save_vars() # [variable_names...]
 {
-	for i in $vars; do
+	makefile_vars="$@"
+	for i in "$@"; do
 		saved_vars[$i]="${!i}"
 		export $i
 	done
@@ -220,7 +221,7 @@ save_config() #
 		for i in "${!saved_vars[@]}"; do
 			echo "export $i='${saved_vars[$i]}'"
 		done
-		for i in "$0" "${arguments[@]}"; do
+		for i in exec "$0" "${arguments[@]}"; do
 			echo -n "'$i' "
 		done
 		echo
@@ -315,7 +316,7 @@ write_makefile() #
 			LDDEPS :=
 		EOF
 
-		for i in $vars; do
+		for i in $makefile_vars; do
 			echo "$i := ${!i}"
 		done
 
