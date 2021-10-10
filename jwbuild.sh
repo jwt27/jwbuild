@@ -260,9 +260,7 @@ write_cxxflags() #
 {
 	{
 		for i in "${submodules[@]}"; do
-			if [[ -e "$i/cxxflags" ]]; then
-				cat "$i/cxxflags"
-			fi
+			read_flags "$i/cxxflags"
 		done
 	} >> cxxflags
 }
@@ -272,9 +270,7 @@ write_ldflags() #
 {
 	{
 		for i in "${submodules[@]}"; do
-			if [[ -e "$i/ldflags" ]]; then
-				cat "$i/ldflags"
-			fi
+			read_flags "$i/ldflags"
 		done
 	} >> ldflags
 }
@@ -284,9 +280,7 @@ write_cxxdeps() #
 {
 	{
 		for i in "${submodules[@]}"; do
-			if [[ -e "$i/cxxdeps" ]]; then
-				add_prefix "$i/" $(read_flags "$i/cxxdeps")
-			fi
+			add_prefix "$i/" $(read_flags "$i/cxxdeps")
 		done
 	} >> cxxdeps
 }
@@ -296,9 +290,7 @@ write_lddeps() #
 {
 	{
 		for i in "${submodules[@]}"; do
-			if [[ -e "$i/lddeps" ]]; then
-				add_prefix "$i/" $(read_flags "$i/lddeps")
-			fi
+			add_prefix "$i/" $(read_flags "$i/lddeps")
 		done
 	} >> lddeps
 }
@@ -308,9 +300,7 @@ write_targets() #
 {
 	{
 		for i in "${submodules[@]}"; do
-			if [[ -e "$i/targets" ]]; then
-				cat "$i/targets"
-			fi
+			read_flags "$i/targets"
 		done
 	} >> targets
 }
@@ -330,18 +320,12 @@ write_makefile() #
 		done
 
 		for i in "${submodules[@]}"; do
-			if [[ -e "$i/cxxflags" ]]; then
-				echo "CXXFLAGS += $(read_flags "$i/cxxflags")"
-			fi
-			if [[ -e "$i/ldflags" ]]; then
-				echo "LDFLAGS += $(read_flags "$i/ldflags")"
-			fi
-			if [[ -e "$i/cxxdeps" ]]; then
-				echo "CXXDEPS += $(add_prefix "$i/" $(read_flags "$i/cxxdeps"))"
-			fi
-			if [[ -e "$i/lddeps" ]]; then
-				echo "LDDEPS += $(add_prefix "$i/" $(read_flags "$i/lddeps"))"
-			fi
+			cat <<- EOF
+				CXXFLAGS += $(read_flags "$i/cxxflags")
+				LDFLAGS += $(read_flags "$i/ldflags")
+				CXXDEPS += $(add_prefix "$i/" $(read_flags "$i/cxxdeps"))
+				LDDEPS += $(add_prefix "$i/" $(read_flags "$i/lddeps"))
+			EOF
 		done
 
 		cat "$src/Makefile.in"
