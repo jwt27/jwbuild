@@ -334,19 +334,6 @@ write_makefile() #
 
 		cat "$src/Makefile.in"
 
-		for i in "${submodules[@]}"; do
-			cat <<- EOF
-				.PRECIOUS: $i/%
-				$i/%: FORCE ; \$(MAKE) -C $i \$*
-				Makefile: $i/Makefile
-			EOF
-			for target in $(remove_duplicates $(read_flags "$i/targets") all clean distclean); do
-				cat <<- EOF
-					.PHONY: $target
-					$target: $i/$target
-				EOF
-			done
-		done
 		local -r makefile_deps="$src/configure $src/Makefile.in config.status $(realpath ${BASH_SOURCE[0]})"
 		cat <<- EOF
 			FORCE:
@@ -367,5 +354,21 @@ write_makefile() #
 				endif
 			endif
 		EOF
+
+		for i in "${submodules[@]}"; do
+			cat <<- EOF
+				.PRECIOUS: $i/%
+				$i/%: FORCE ; \$(MAKE) -C $i \$*
+				ifeq (\$(JWBUILD_MAKECLEAN),)
+					Makefile: $i/Makefile
+				endif
+			EOF
+			for target in $(remove_duplicates $(read_flags "$i/targets") all clean distclean); do
+				cat <<- EOF
+					.PHONY: $target
+					$target: $i/$target
+				EOF
+			done
+		done
 	} >> Makefile
 }
