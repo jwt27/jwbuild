@@ -211,22 +211,15 @@ configure_submodules() #
 	done
 }
 
-# Clean up generated files from a previous configuration
-cleanup() #
+# Generate config.status
+save_config() #
 {
 	if test_option help; then
 		fail "no help message!"
 	fi
-	if [[ -e Makefile ]]; then
-		make distclean > /dev/null 2>&1 || :
-	fi
 
 	rm -f $generated_files
-}
 
-# Generate config.status
-save_config() #
-{
 	{
 		echo '#!/usr/bin/env bash'
 		for i in "${!saved_vars[@]}"; do
