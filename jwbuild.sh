@@ -93,6 +93,14 @@ test_option() # <option_name> <default_value>
 	fi
 }
 
+# Add a string in front of variable
+prepend() # <var_name> <string...>
+{
+	local -n ref=$1
+	shift
+	ref="$@ $ref"
+}
+
 # Add a submodule to be configured with the given arguments
 add_submodule() # <relative_directory> [configure_args...]
 {
@@ -252,7 +260,7 @@ read_flags() # <flag_file>
 # Remove all duplicate words in string
 remove_duplicates() # [words...]
 {
-	declare -A map
+	local -A map
 	for i in "$@"; do
 		map[$i]=1
 	done
