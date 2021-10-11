@@ -352,6 +352,9 @@ write_makefile() #
 			FORCE:
 			.PHONY: distclean
 			distclean: clean ; -rm -f $generated_files
+			ifneq (,\$(findstring B,\$(MAKEFLAGS)))
+				export JWBUILD_MAKECLEAN := yes
+			endif
 			ifneq (,\$(filter \$(MAKECMDGOALS),clean distclean))
 				export JWBUILD_MAKECLEAN := yes
 			endif
