@@ -320,7 +320,7 @@ write_makefile() #
 		EOF
 
 		for i in $makefile_vars; do
-			echo "$i := ${!i}"
+			echo "$i :="
 		done
 
 		for i in "${submodules[@]}"; do
@@ -330,6 +330,10 @@ write_makefile() #
 				CXXDEPS += $(add_prefix "$i/" $(read_flags "$i/cxxdeps"))
 				LDDEPS += $(add_prefix "$i/" $(read_flags "$i/lddeps"))
 			EOF
+		done
+
+		for i in $makefile_vars; do
+			echo "$i += ${!i}"
 		done
 
 		cat "$src/Makefile.in"
