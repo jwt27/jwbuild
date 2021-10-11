@@ -338,6 +338,7 @@ write_makefile() #
 			cat <<- EOF
 				.PRECIOUS: $i/%
 				$i/%: FORCE ; \$(MAKE) -C $i \$*
+				Makefile: $i/Makefile
 			EOF
 			for target in $(remove_duplicates $(read_flags "$i/targets") all clean distclean); do
 				cat <<- EOF
@@ -351,8 +352,16 @@ write_makefile() #
 			FORCE:
 			.PHONY: distclean
 			distclean: clean ; -rm -f $generated_files
-			ifeq (,\$(filter \$(MAKECMDGOALS),clean distclean))
-				Makefile: $makefile_deps ; ./config.status
+			ifneq (,\$(filter \$(MAKECMDGOALS),clean distclean))
+				export JWBUILD_MAKECLEAN := yes
+			endif
+			ifeq (\$(JWBUILD_MAKECLEAN),)
+				ifeq (\$(JWBUILD_SUBMAKE),)
+					export JWBUILD_SUBMAKE := yes
+					Makefile: $makefile_deps ; ./config.status
+				else
+					Makefile: $makefile_deps ; touch Makefile
+				endif
 			endif
 		EOF
 	} >> Makefile
