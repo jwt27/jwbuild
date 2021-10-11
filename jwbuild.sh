@@ -119,7 +119,7 @@ save_vars() # [variable_names...]
 		echo ${!saved_vars[@]}
 		exit
 	fi
-	msg "Configuring in $(pwd)..."
+	msg "Configuring in $(pwd) ..."
 }
 
 # Return Windows-style path, if running in MinGW
@@ -206,6 +206,9 @@ configure_submodules() #
 # Clean up generated files from a previous configuration
 cleanup() #
 {
+	if test_option help; then
+		fail "no help message!"
+	fi
 	if [[ -e Makefile ]]; then
 		make distclean > /dev/null 2>&1 || :
 	fi
