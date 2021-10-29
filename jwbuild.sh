@@ -339,7 +339,6 @@ write_makefile() #
 
 		cat "$src/Makefile.in"
 
-		local -r makefile_deps="$src/configure $src/Makefile.in config.status $(realpath ${BASH_SOURCE[0]})"
 		cat <<- EOF
 			FORCE:
 			.PHONY: distclean
@@ -351,11 +350,12 @@ write_makefile() #
 				export JWBUILD_MAKECLEAN := yes
 			endif
 			ifeq (\$(JWBUILD_MAKECLEAN),)
+				Makefile: $src/configure $src/Makefile.in config.status $(realpath ${BASH_SOURCE[0]})
 				ifeq (\$(JWBUILD_SUBMAKE),)
 					export JWBUILD_SUBMAKE := yes
-					Makefile: $makefile_deps ; ./config.status
+					Makefile: ; ./config.status
 				else
-					Makefile: $makefile_deps ; touch Makefile
+					Makefile: ; touch Makefile
 				endif
 			endif
 		EOF
