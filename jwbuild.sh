@@ -233,13 +233,27 @@ save_config() #
 	chmod +x config.status
 }
 
-# Prepend the given prefix to each word in string
-add_prefix() # <prefix> [words...]
+# Prepend the given prefix to each directory in string
+prefix_dir() # <prefix> [dirs...]
 {
-	local prefix=$1
+	local prefix="$1"
 	shift
 	[[ -z "$@" ]] && return
 	printf "$prefix/%s " "$@" | tr -s '/'
+}
+
+# Prefix the given directories if they are relative
+prefix_dir_if_relative() # <prefix> [dirs...]
+{
+	local prefix="$1"
+	shift
+	for j in "$@"; do
+		if [[ "${j:0:1}" == '/' ]]; then
+			echo -n "$j "
+		else
+			echo -n "$prefix/$j " | tr -s '/'
+		fi
+	done
 }
 
 # Read flags from a file separated either by spaces or newlines
@@ -285,7 +299,7 @@ write_cxxdeps() #
 {
 	{
 		for i in "${submodules[@]}"; do
-			add_prefix "$i/" $(read_flags "$i/cxxdeps")
+			prefix_dir_if_relative "$i/" $(read_flags "$i/cxxdeps")
 		done
 	} >> cxxdeps
 }
@@ -295,7 +309,7 @@ write_lddeps() #
 {
 	{
 		for i in "${submodules[@]}"; do
-			add_prefix "$i/" $(read_flags "$i/lddeps")
+			prefix_dir_if_relative "$i/" $(read_flags "$i/lddeps")
 		done
 	} >> lddeps
 }
@@ -328,8 +342,8 @@ write_makefile() #
 			cat <<- EOF
 				CXXFLAGS += $(read_flags "$i/cxxflags")
 				LDFLAGS += $(read_flags "$i/ldflags")
-				CXXDEPS += $(add_prefix "$i/" $(read_flags "$i/cxxdeps"))
-				LDDEPS += $(add_prefix "$i/" $(read_flags "$i/lddeps"))
+				CXXDEPS += $(prefix_dir_if_relative "$i/" $(read_flags "$i/cxxdeps"))
+				LDDEPS += $(prefix_dir_if_relative "$i/" $(read_flags "$i/lddeps"))
 			EOF
 		done
 
