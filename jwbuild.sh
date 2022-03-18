@@ -56,17 +56,17 @@ for i in "${arguments[@]}"; do
 	esac
 done
 
-# Parse boolean string and return as exit code.  Return default value if empty.
-test_bool() # <value> <default_value>
+# Set the default value for a given option.
+option_default() # <option_name> <value>
 {
-	local default=1
-	if [[ ! -z "$2" ]]; then
-		if test_bool $2; then
-			default=0
-		else
-			default=1
-		fi
+	if [[ -z "${options[$1]}" ]]; then
+		options[$1]="$2"
 	fi
+}
+
+# Parse boolean string and return as exit code.
+test_bool() # <string>
+{
 	case "$1" in
 	true)  return 0 ;;
 	false) return 1 ;;
@@ -76,15 +76,15 @@ test_bool() # <value> <default_value>
 	N*)    return 1 ;;
 	1)     return 0 ;;
 	0)     return 1 ;;
-	'')    return $default ;;
-	*)     fail "unrecognized boolean value $1"
+	'')    return 1 ;;
+	*)     fail "unrecognized boolean value $1" ;;
 	esac
 }
 
-# Parse boolean option and return as exit code.  Return default value if empty.
-test_option() # <option_name> <default_value>
+# Parse boolean option and return as exit code.
+test_option() # <option_name>
 {
-	if test_bool "${options[$1]}" $2; then
+	if test_bool "${options[$1]}"; then
 		options[$1]=yes
 		return 0
 	else
