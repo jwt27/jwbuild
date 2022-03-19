@@ -56,6 +56,12 @@ for i in "${arguments[@]}"; do
 	esac
 done
 
+# Logical NOT operator.
+not() # <expression>
+{
+	! eval "$@"
+}
+
 # Set the default value for a given option.
 option_default() # <option_name> <value>
 {
