@@ -362,7 +362,7 @@ write_makefile() #
 		cat <<- EOF
 			FORCE:
 			.PHONY: distclean
-			distclean: clean ; -rm -f $generated_files
+			distclean:: clean ; -rm -f $generated_files
 			ifneq (,\$(findstring B,\$(MAKEFLAGS)))
 				export JWBUILD_MAKECLEAN := yes
 			endif
@@ -388,10 +388,16 @@ write_makefile() #
 					Makefile: $i/Makefile
 				endif
 			EOF
-			for target in $(remove_duplicates $(read_flags "$i/targets") all clean distclean); do
+			for target in $(remove_duplicates $(read_flags "$i/targets")); do
 				cat <<- EOF
 					.PHONY: $target
 					$target: $i/$target
+				EOF
+			done
+			for target in all clean distclean; do
+				cat <<- EOF
+					.PHONY: $target
+					$target:: $i/$target
 				EOF
 			done
 		done
