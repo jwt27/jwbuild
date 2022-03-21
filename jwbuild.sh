@@ -1,16 +1,14 @@
 #!/usr/bin/false
 
-# Expected variables on entry:
-# $src: source directory
-
 set -e
-
+unset CDPATH
 declare -A options
 declare -A saved_vars
 declare makefile_vars
 declare -a submodules
 declare -A submodule_args
 declare -ra arguments=("$@")
+readonly src="$(dirname "$(realpath "${BASH_SOURCE[1]}")")"
 readonly generated_files='Makefile config.status cxxflags ldflags cxxdeps lddeps targets'
 
 # Display a message.
