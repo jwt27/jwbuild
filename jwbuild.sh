@@ -57,9 +57,9 @@ for i in "${arguments[@]}"; do
 done
 
 # Logical NOT operator.
-not() # <expression>
+not() # <expression...>
 {
-	! eval "$@"
+	! "$@"
 }
 
 # Set the default value for a given option.
